@@ -33,11 +33,20 @@ async function ensureProject(name: string): Promise<void> {
     const { default_branch } = await http.get(`${MANIFEST_API}/repos/${MANIFEST_GROUP}/${name}`)
         .json<{ default_branch: string }>();
 
+    const attributes = {
+        default_branch,
+        builds_access_level: 'disabled',
+        issues_access_level: 'disabled',
+        merge_requests_access_level: 'disabled',
+        wiki_access_level: 'disabled',
+        visibility: 'public',
+    };
+
     try {
         await http.put(`${LSC_API}/projects/${encodeURIComponent(`${LSC_GROUP}/${name}`)}`, {
             headers: { 'PRIVATE-TOKEN': LSC_TOKEN },
             json: {
-                default_branch,
+                ...attributes,
             },
         });
     } catch (e) {
@@ -46,7 +55,7 @@ async function ensureProject(name: string): Promise<void> {
             json: {
                 path: name,
                 namespace_id: LSC_NAMESPACE,
-                default_branch,
+                ...attributes,
             },
         });
     }
