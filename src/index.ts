@@ -66,10 +66,14 @@ async function ensureProject(name: string): Promise<void> {
     const { manifest } = YAML.load(manifestText) as Manifest;
     log('');
 
-    const projects = [
-        ...manifest.projects.filter(({ remote }) => typeof remote == 'undefined'),
-        { name: 'zephyr', path: 'zephyr', revision },
-    ];
+    manifest.projects.push({
+        name: 'zephyr',
+        revision,
+        ...manifest.self!,
+    });
+
+    const projects = manifest.projects
+        .filter(({ remote }) => typeof remote == 'undefined');
 
     log('# Update repositories');
     for (let i = 0; i < projects.length; i++) {
@@ -87,7 +91,8 @@ async function ensureProject(name: string): Promise<void> {
     await git.cwd(join(WORK_DIR, 'manifest-mirror'));
     await git.addConfig('user.name', 'xychen');
     await git.addConfig('user.email', 'xychen@listenai.com');
-    manifest.remotes[0]['url-base'] = LSC_BASE;
+    manifest.remotes[0]['url-base'] = 'https://cloud.listenai.com/zephyr-mirror';
+    delete manifest.self;
     const manifestMirrorText =
         '# Mirrored west manifest for Zephyr.\n' +
         `# ${MANIFEST_REPO}/raw/${revision}/west.yml\n` +

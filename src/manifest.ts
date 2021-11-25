@@ -16,7 +16,7 @@ export interface Manifest {
             groups?: string[];
         }[];
         'group-filter': string[];
-        self: {
+        self?: {
             path: string;
             'west-commands'?: string;
             import?: string;
