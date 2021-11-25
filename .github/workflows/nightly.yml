@@ -19,4 +19,4 @@ jobs:
       - name: Run
         run: npm run start
         env:
-          LSC_AUTH: ${{ secrets.LSC_AUTH }}
+          LSC_TOKEN: ${{ secrets.LSC_TOKEN }}

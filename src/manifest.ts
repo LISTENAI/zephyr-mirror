@@ -9,6 +9,7 @@ export interface Manifest {
         }[];
         projects: {
             name: string;
+            remote?: string;
             revision: string;
             path: string;
             'west-commands'?: string;
