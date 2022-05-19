@@ -2,7 +2,7 @@ import { join } from 'path';
 import simpleGit from 'simple-git';
 import * as YAML from 'js-yaml';
 import { remove, readFile, outputFile } from 'fs-extra';
-import http from 'got';
+import http, { HTTPError } from 'got';
 
 import { Manifest } from './manifest';
 
@@ -29,11 +29,17 @@ const git = simpleGit().outputHandler((bin, stdout, stderr, args) => {
     stderr.pipe(process.stderr);
 });
 
-async function ensureProject(name: string): Promise<void> {
+function logHttpError(e: unknown) {
+    if (e instanceof HTTPError) {
+        console.error(e.response.body);
+    }
+}
+
+async function makeProjectAttributes(name: string): Promise<Record<string, string>> {
     const { default_branch } = await http.get(`${MANIFEST_API}/repos/${MANIFEST_GROUP}/${name}`)
         .json<{ default_branch: string }>();
 
-    const attributes = {
+    return {
         default_branch,
         builds_access_level: 'disabled',
         issues_access_level: 'disabled',
@@ -41,7 +47,9 @@ async function ensureProject(name: string): Promise<void> {
         wiki_access_level: 'disabled',
         visibility: 'public',
     };
+}
 
+async function ensureProjectAttributes(name: string, attributes: Record<string, string>): Promise<void> {
     try {
         await http.put(`${LSC_API}/projects/${encodeURIComponent(`${LSC_GROUP}/${name}`)}`, {
             headers: { 'PRIVATE-TOKEN': LSC_TOKEN },
@@ -50,6 +58,13 @@ async function ensureProject(name: string): Promise<void> {
             },
         });
     } catch (e) {
+        logHttpError(e);
+        throw e;
+    }
+}
+
+async function ensureProjectExists(name: string, attributes: Record<string, string>): Promise<void> {
+    try {
         await http.post(`${LSC_API}/projects`, {
             headers: { 'PRIVATE-TOKEN': LSC_TOKEN },
             json: {
@@ -58,6 +73,8 @@ async function ensureProject(name: string): Promise<void> {
                 ...attributes,
             },
         });
+    } catch (e) {
+        // No rethrow
     }
 }
 
@@ -88,10 +105,12 @@ async function ensureProject(name: string): Promise<void> {
     for (let i = 0; i < projects.length; i++) {
         const proj = projects[i];
         log(`# [${i + 1}/${projects.length}] ${proj.name}`);
-        await ensureProject(proj.name);
+        const attrs = await makeProjectAttributes(proj.name);
+        await ensureProjectExists(proj.name, attrs);
         await git.clone(`${MANIFEST_BASE}/${proj.name}`, join(WORK_DIR, proj.name), ['--bare']);
         await git.cwd(join(WORK_DIR, proj.name));
         await git.push(['--mirror', `${LSC_BASE}/${proj.name}.git`]);
+        await ensureProjectAttributes(proj.name, attrs);
     }
     log('');
 
