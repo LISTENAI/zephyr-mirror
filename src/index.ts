@@ -78,6 +78,23 @@ async function ensureProjectExists(name: string, attributes: Record<string, stri
     }
 }
 
+async function clearProtectedBranches(name: string): Promise<void> {
+    try {
+        const project = encodeURIComponent(`${LSC_GROUP}/${name}`);
+        const branches = await http.get(`${LSC_API}/projects/${project}/protected_branches`, {
+            headers: { 'PRIVATE-TOKEN': LSC_TOKEN },
+        }).json<{ id: number, name: string }[]>();
+        for (const { name } of branches) {
+            console.log(`* Clearing protected branch ${name}…`);
+            await http.delete(`${LSC_API}/projects/${project}/protected_branches/${encodeURIComponent(name)}`, {
+                headers: { 'PRIVATE-TOKEN': LSC_TOKEN },
+            });
+        }
+    } catch (e) {
+        logHttpError(e);
+    }
+}
+
 (async () => {
 
     log('# Hello world!');
@@ -107,10 +124,12 @@ async function ensureProjectExists(name: string, attributes: Record<string, stri
         log(`# [${i + 1}/${projects.length}] ${proj.name}`);
         const attrs = await makeProjectAttributes(proj.name);
         await ensureProjectExists(proj.name, attrs);
+        await clearProtectedBranches(proj.name);
         await git.clone(`${MANIFEST_BASE}/${proj.name}`, join(WORK_DIR, proj.name), ['--bare']);
         await git.cwd(join(WORK_DIR, proj.name));
         await git.push(['--mirror', `${LSC_BASE}/${proj.name}.git`]);
         await ensureProjectAttributes(proj.name, attrs);
+        await clearProtectedBranches(proj.name);
     }
     log('');
 
