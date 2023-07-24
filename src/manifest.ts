@@ -11,6 +11,7 @@ export interface Manifest {
             name: string;
             remote?: string;
             revision: string;
+            'repo-path'?: string;
             path: string;
             'west-commands'?: string;
             groups?: string[];

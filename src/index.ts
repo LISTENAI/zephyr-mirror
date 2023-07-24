@@ -122,14 +122,15 @@ async function clearProtectedBranches(name: string): Promise<void> {
     for (let i = 0; i < projects.length; i++) {
         const proj = projects[i];
         log(`# [${i + 1}/${projects.length}] ${proj.name}`);
-        const attrs = await makeProjectAttributes(proj.name);
-        await ensureProjectExists(proj.name, attrs);
-        await clearProtectedBranches(proj.name);
-        await git.clone(`${MANIFEST_BASE}/${proj.name}`, join(WORK_DIR, proj.name), ['--bare']);
-        await git.cwd(join(WORK_DIR, proj.name));
-        await git.push(['--mirror', `${LSC_BASE}/${proj.name}.git`]);
-        await ensureProjectAttributes(proj.name, attrs);
-        await clearProtectedBranches(proj.name);
+        const name = (proj['repo-path'] || proj.name).replace(/\.git$/, '');
+        const attrs = await makeProjectAttributes(name);
+        await ensureProjectExists(name, attrs);
+        await clearProtectedBranches(name);
+        await git.clone(`${MANIFEST_BASE}/${name}`, join(WORK_DIR, name), ['--bare']);
+        await git.cwd(join(WORK_DIR, name));
+        await git.push(['--mirror', `${LSC_BASE}/${name}.git`]);
+        await ensureProjectAttributes(name, attrs);
+        await clearProtectedBranches(name);
     }
     log('');
 
