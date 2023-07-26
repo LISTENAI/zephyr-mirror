@@ -3,6 +3,7 @@ import simpleGit from 'simple-git';
 import * as YAML from 'js-yaml';
 import { remove, readFile, outputFile } from 'fs-extra';
 import http, { HTTPError } from 'got';
+import { setTimeout } from 'timers/promises';
 
 import { Manifest } from './manifest';
 
@@ -20,6 +21,8 @@ const LSC_BASE = `https://xychen:${LSC_TOKEN}@cloud.listenai.com/zephyr-mirror`;
 const LSC_API = 'https://cloud.listenai.com/api/v4';
 const LSC_GROUP = 'zephyr-mirror';
 const LSC_NAMESPACE = '535';
+
+const LSC_LIMITED_TIMEOUT_PER_REPO = 60 * 1000;
 
 const log = console.log;
 
@@ -120,6 +123,8 @@ async function clearProtectedBranches(name: string): Promise<void> {
 
     log('# Update repositories');
     for (let i = 0; i < projects.length; i++) {
+        const start = Date.now();
+
         const proj = projects[i];
         log(`# [${i + 1}/${projects.length}] ${proj.name}`);
         const name = (proj['repo-path'] || proj.name).replace(/\.git$/, '');
@@ -131,6 +136,11 @@ async function clearProtectedBranches(name: string): Promise<void> {
         await git.push(['--mirror', `${LSC_BASE}/${name}.git`]);
         await ensureProjectAttributes(name, attrs);
         await clearProtectedBranches(name);
+
+        const elapsed = Date.now() - start;
+        if (elapsed < LSC_LIMITED_TIMEOUT_PER_REPO) {
+            await setTimeout(LSC_LIMITED_TIMEOUT_PER_REPO - elapsed);
+        }
     }
     log('');
 
